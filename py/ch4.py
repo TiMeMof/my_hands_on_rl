@@ -158,6 +158,7 @@ for a in range(4):
         print("---------------")
         Q_1.append(r + gamma * agent.v[next_state])
 V_1 = agent.v[1]
+
 print("Q*(1,a) = ", Q_1)
 print("V*(1) = agent.v[1] = ", V_1)
 print("因此一致， 说明策略评估的正确性")
