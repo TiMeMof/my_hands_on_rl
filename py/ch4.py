@@ -53,15 +53,22 @@ class PolicyIteration:
         while 1:
             max_diff = 0
             new_v = [0] * self.env.ncol * self.env.nrow
+            # 对于每一个状态s,这里就是环境中的每一个格子
             for s in range(self.env.ncol * self.env.nrow):
                 qsa_list = []  # 开始计算状态s下的所有Q(s,a)价值
+                # 通俗来说，就是对于每一个状态s，我们计算其在每个动作下的Q值，然后求和
                 for a in range(4):
                     qsa = 0
+                    # 这里输入P的是s和a，返回的是：概率，下一个状态，奖励，是否结束
+                    # 这里的概率是指在状态s下采取动作a后，到达下一个状态的概率
+                    # 因为是确定性环境，所以概率为 1
                     for res in self.env.P[s][a]:
                         p, next_state, r, done = res
+                        # 这里的qsa就是 Q(s,a)
                         qsa += p * (r + self.gamma * self.v[next_state] *
                                     (1 - done))
                         # 本章环境比较特殊,奖励和下一个状态有关,所以需要和状态转移概率相乘
+                    # 这里对于每一个动作a获得的奖励，进行加权求和，得到V(s)（即为下一步的new_v[s]）
                     qsa_list.append(self.pi[s][a] * qsa)
                 new_v[s] = sum(qsa_list)  # 状态价值函数和动作价值函数之间的关系
                 max_diff = max(max_diff, abs(new_v[s] - self.v[s]))
@@ -71,6 +78,7 @@ class PolicyIteration:
         print("策略评估进行%d轮后完成" % cnt)
 
     def policy_improvement(self):  # 策略提升
+        # 对于每一个状态s,这里就是环境中的每一个格子
         for s in range(self.env.nrow * self.env.ncol):
             qsa_list = []
             for a in range(4):
@@ -120,6 +128,9 @@ def print_agent(agent, action_meaning, disaster=[], end=[]):
                     pi_str += action_meaning[k] if a[k] > 0 else 'o'
                 print(pi_str, end=' ')
         print()
+    
+    # 坐标是(10,1)的状态的策略
+    # print(agent.pi[1 * agent.env.ncol + 10])
 
 
 env = CliffWalkingEnv()
