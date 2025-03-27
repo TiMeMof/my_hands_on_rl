@@ -79,6 +79,7 @@ class PolicyIteration:
 
     def policy_improvement(self):  # 策略提升
         # 对于每一个状态s,这里就是环境中的每一个格子
+        # 这里面的策略提升只能提升1次，因为每个s的价值是确定的，所以只需要找到最大的价值对应的动作即可
         for s in range(self.env.nrow * self.env.ncol):
             qsa_list = []
             for a in range(4):
@@ -140,7 +141,27 @@ gamma = 0.9
 agent = PolicyIteration(env, theta, gamma)
 agent.policy_iteration()
 print_agent(agent, action_meaning, list(range(37, 47)), [47])
-
+print("上述得到的最优策略应该符合贝尔曼最优方程， 方程：\n"
+"V*(s) = max_a Q*(s,a) \n"
+"Q*(s,a) = r(s,a) + gamma * ∑_(s') P(s'|s,a) max_a' Q*(s',a') \n"
+"V*(s) = max_a{ [r(s,a) + gamma * ∑_(s') P(s'|s,a) V*(s')] } \n")
+print("用贝尔曼最优方程检验策略评估的正确性， 比如s=1时：")
+Q_1, V_1 = [], -1000
+for a in range(4):
+    for res in env.P[1][a]:
+        p, next_state, r, done = res
+        print("next_state = ", next_state)
+        print("r(1,a) = ", r)
+        print(f"P({next_state}|1,a) = ", p)
+        print(f"V*({next_state}) = ", agent.v[next_state])
+        print("Q*(1,a) = ", r + gamma * agent.v[next_state])
+        print("---------------")
+        Q_1.append(r + gamma * agent.v[next_state])
+V_1 = agent.v[1]
+print("Q*(1,a) = ", Q_1)
+print("V*(1) = agent.v[1] = ", V_1)
+print("因此一致， 说明策略评估的正确性")
+print("-------------------")
 # 策略评估进行60轮后完成
 # 策略提升完成
 # 策略评估进行72轮后完成
@@ -162,7 +183,7 @@ print_agent(agent, action_meaning, list(range(37, 47)), [47])
 # ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ovoo
 # ^ooo **** **** **** **** **** **** **** **** **** **** EEEE
 
-### 4
+print("### 4-----ValueIteration")
 class ValueIteration:
     """ 价值迭代算法 """
     def __init__(self, env, theta, gamma):
@@ -210,13 +231,13 @@ class ValueIteration:
             self.pi[s] = [1 / cntq if q == maxq else 0 for q in qsa_list]
 
 
-# env = CliffWalkingEnv()
-# action_meaning = ['^', 'v', '<', '>']
-# theta = 0.001
-# gamma = 0.9
-# agent = ValueIteration(env, theta, gamma)
-# agent.value_iteration()
-# print_agent(agent, action_meaning, list(range(37, 47)), [47])
+env = CliffWalkingEnv()
+action_meaning = ['^', 'v', '<', '>']
+theta = 0.001
+gamma = 0.9
+agent = ValueIteration(env, theta, gamma)
+agent.value_iteration()
+print_agent(agent, action_meaning, list(range(37, 47)), [47])
 
 # 价值迭代一共进行14轮
 # 状态价值：
