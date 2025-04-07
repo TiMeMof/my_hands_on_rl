@@ -7,7 +7,7 @@
     "editor.fontLigatures": true,//启用字体连字
     "editor.fontSize": 16,//字体大小
     "terminal.integrated.fontFamily": "Consolas",//命令行字体
-    "window.zoomLevel": 0.1,//窗口缩放级别
+    "window.zoomLevel": 0.01,//窗口缩放级别
     // "workbench.colorTheme": "Default Dark Modern"//主题
     //字体间距：
     "editor.lineHeight": 1.3,//行高

@@ -253,6 +253,8 @@ print_agent(agent, action_meaning, list(range(37, 47)), [47])
 # ^ooo **** **** **** **** **** **** **** **** **** **** EEEE
 
 ### 5
+# pip install gym==0.26.2
+# gym要0.26.2版本,否则会报错
 import gym
 env = gym.make("FrozenLake-v1",render_mode="rgb_array")  # 创建环境
 env = env.unwrapped  # 解封装才能访问状态转移矩阵P
