@@ -30,6 +30,9 @@ class CliffWalkingEnv:
         self.y = self.nrow - 1
         return self.y * self.ncol + self.x
     
+
+# epsilons = [0.01, 0.01, 0.01] 
+epsilons = [0.1, 0.1, 0.1] 
 class Sarsa:
     """ Sarsa算法 """
     def __init__(self, ncol, nrow, epsilon, alpha, gamma, n_action=4):
@@ -62,7 +65,7 @@ ncol = 12
 nrow = 4
 env = CliffWalkingEnv(ncol, nrow)
 np.random.seed(0)
-epsilon = 0.1
+epsilon = epsilons[0] 
 alpha = 0.1
 gamma = 0.9
 agent = Sarsa(ncol, nrow, epsilon, alpha, gamma)
@@ -184,7 +187,7 @@ class nstep_Sarsa:
 np.random.seed(0)
 n_step = 5  # 5步Sarsa算法
 alpha = 0.1
-epsilon = 0.1
+epsilon = epsilons[1]
 gamma = 0.9
 agent = nstep_Sarsa(n_step, ncol, nrow, epsilon, alpha, gamma)
 num_episodes = 500  # 智能体在环境中运行的序列的数量
@@ -262,13 +265,12 @@ class QLearning:
         return a
 
     def update(self, s0, a0, r, s1):
-        td_error = r + self.gamma * self.Q_table[s1].max(
-        ) - self.Q_table[s0, a0]
+        td_error = r + self.gamma * self.Q_table[s1].max() - self.Q_table[s0, a0]
         self.Q_table[s0, a0] += self.alpha * td_error
 
 
 np.random.seed(0)
-epsilon = 0.1
+epsilon = epsilons[2]
 alpha = 0.1
 gamma = 0.9
 agent = QLearning(ncol, nrow, epsilon, alpha, gamma)
@@ -296,40 +298,67 @@ with tqdm(total=int(num_episodes ), desc='Iteration') as pbar:
             })
         pbar.update(1)
 
+return_list4 = []  # 记录每一条序列的回报
+with tqdm(total=int(num_episodes ), desc='Iteration') as pbar:
+    agent.epsilon = 0
+    for i_episode in range(int(num_episodes )):  # 每个进度条的序列数
+        episode_return = 0
+        state = env.reset()
+        done = False
+        while not done:
+            action = agent.take_action(state)
+            next_state, reward, done = env.step(action)
+            episode_return += reward  # 这里回报的计算不进行折扣因子衰减
+            agent.update(state, action, reward, next_state)
+            state = next_state
+        return_list4.append(episode_return)
+        if (i_episode + 1) % 10 == 0:  # 每10条序列打印一下这10条序列的平均回报
+            pbar.set_postfix({
+                'episode':
+                '%d' % ( i_episode + 1),
+                'return':
+                '%.3f' % np.mean(return_list4[-10:])
+            })
+        pbar.update(1)
+
 episodes_list = list(range(len(return_list3)))
 
 action_meaning = ['^', 'v', '<', '>']
 print('Q-learning算法最终收敛得到的策略为：')
 print_agent(agent, env, action_meaning, list(range(37, 47)), [47])
+# Q-learning算法最终收敛得到的策略为：
+# ^ooo ovoo ovoo ^ooo ^ooo ovoo ooo> ^ooo ^ooo ooo> ooo> ovoo
+# ooo> ooo> ooo> ooo> ooo> ooo> ^ooo ooo> ooo> ooo> ooo> ovoo
+# ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ovoo
+# ^ooo **** **** **** **** **** **** **** **** **** **** EEEE
+Qtable = agent.Q_table
 
-
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(12, 6))
 # # 画散点图
 # plt.scatter(episodes_list, return_list1, s=0.5, label='Sarsa')
 # plt.scatter(episodes_list, return_list2, s=0.5, label='5-step Sarsa')
 # plt.scatter(episodes_list, return_list3, s=0.5, label='Q-learning')
 
-# 画平滑曲线
-def smooth(data, window_size):
-    """对数据进行滑动平均平滑处理"""
-    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+# # 画平滑曲线
+# def smooth(data, window_size):
+#     """对数据进行滑动平均平滑处理"""
+#     return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+# # 设置滑动窗口大小
+# window_size = 8
+# smoothed_return_list1 = smooth(return_list1, window_size)
+# smoothed_return_list2 = smooth(return_list2, window_size)
+# smoothed_return_list3 = smooth(return_list3, window_size)
+# smoothed_episodes_list = list(range(len(smoothed_return_list1)))
+# # 画平滑曲线
+# plt.plot(smoothed_episodes_list, smoothed_return_list1, linewidth=0.99, label='Sarsa')
+# plt.plot(smoothed_episodes_list, smoothed_return_list2, linewidth=0.99, label='5-step Sarsa')
+# plt.plot(smoothed_episodes_list, smoothed_return_list3, linewidth=0.99, label='Q-learning')
 
-# 设置滑动窗口大小
-window_size = 5
-smoothed_return_list1 = smooth(return_list1, window_size)
-smoothed_return_list2 = smooth(return_list2, window_size)
-smoothed_return_list3 = smooth(return_list3, window_size)
-smoothed_episodes_list = list(range(len(smoothed_return_list1)))
-
-# 画平滑曲线
-plt.plot(smoothed_episodes_list, smoothed_return_list1, linewidth=0.99, label='Sarsa')
-plt.plot(smoothed_episodes_list, smoothed_return_list2, linewidth=0.99, label='5-step Sarsa')
-plt.plot(smoothed_episodes_list, smoothed_return_list3, linewidth=0.99, label='Q-learning')
-
-# # 画折线图
-# plt.plot(episodes_list, return_list1, linewidth=0.99, label='Sarsa')
-# plt.plot(episodes_list, return_list2, linewidth=0.99, label='5-step Sarsa')
-# plt.plot(episodes_list, return_list3, linewidth=0.99 ,label='Q-learning')
+# 画折线图
+plt.plot(episodes_list, return_list1, linewidth=0.99, label='Sarsa')
+plt.plot(episodes_list, return_list2, linewidth=0.99, label='5-step Sarsa')
+plt.plot(episodes_list, return_list3, linewidth=0.99 ,label='Q-learning')
+plt.plot(episodes_list, return_list4, linewidth=0.99 ,label='Q-learning-epsilon=0')
 
 plt.xlabel('Episodes')
 plt.ylabel('Returns')
@@ -337,9 +366,9 @@ plt.title('Sarsa, 5-step Sarsa, Q-learning on {}'.format('Cliff Walking'))
 plt.legend()
 plt.show()
 
+print("\n",np.array(return_list1).mean(), np.array(return_list1).std())
+print(np.array(return_list2).mean(), np.array(return_list2).std())
+print(np.array(return_list3).mean(), np.array(return_list3).std())
 
-# Q-learning算法最终收敛得到的策略为：
-# ^ooo ovoo ovoo ^ooo ^ooo ovoo ooo> ^ooo ^ooo ooo> ooo> ovoo
-# ooo> ooo> ooo> ooo> ooo> ooo> ^ooo ooo> ooo> ooo> ooo> ovoo
-# ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ooo> ovoo
-# ^ooo **** **** **** **** **** **** **** **** **** **** EEEE
+# print(Qtable == agent.Q_table)
+
