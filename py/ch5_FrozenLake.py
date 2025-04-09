@@ -70,7 +70,7 @@ env = gym.make("FrozenLake-v1",render_mode="rgb_array", is_slippery=slippery)  #
 
 agent = QLearningAgent(env, learning_rate=alpha, discount_factor=gamma, exploration_prob=epsilon, epsilon_decay=epsilon_decay)
 return_list = []
-with tqdm(total=int(num_episodes ), desc='Iteration') as pbar:
+with tqdm(total=int(num_episodes ), desc='Q-Learning') as pbar:
     for episode in range(num_episodes):
         episode_return = 0
         state, _ = env.reset()
@@ -96,7 +96,7 @@ env.close()
 env2 = gym.make("FrozenLake-v1", render_mode="rgb_array", is_slippery=slippery)  # 创建环境
 agent2 = Sarsa(env2, learning_rate=alpha, discount_factor=gamma, exploration_prob=epsilon, exploration_decay=epsilon_decay)
 return_list2 = []
-with tqdm(total=int(num_episodes), desc='Iteration') as pbar:
+with tqdm(total=int(num_episodes), desc='Sarsa') as pbar:
     for episode in range(num_episodes):
         episode_return = 0
         state, _ = env2.reset()
@@ -128,22 +128,40 @@ env2.close()
 print("Q 表：")
 print("Q-learning:\n",agent.q_table,"\n","Sarsa:\n",agent2.q_table)
 # 测试训练好的 Q 表
-Q = agent2.q_table
+Q = agent.q_table
+# Q = np.array([[1.77839632e-01, 8.26318914e-02, 6.90146265e-02, 6.11688937e-02],
+#     [1.11209997e-02, 1.00312276e-02, 5.10838151e-03, 1.40567832e-01],
+#     [1.30933566e-01 ,9.13154663e-03, 6.36256773e-03, 6.70310488e-03],
+#     [6.32157989e-04 ,3.67749242e-03, 1.60959497e-03, 9.38036937e-03],
+#     [2.05748754e-01 ,6.55682427e-02, 4.52627756e-02, 3.96834960e-02],
+#     [0.00000000e+00 ,0.00000000e+00, 0.00000000e+00, 0.00000000e+00],
+#     [1.29731609e-01 ,2.57631048e-02, 1.29408302e-02, 5.08813933e-03],
+#     [0.00000000e+00 ,0.00000000e+00, 0.00000000e+00, 0.00000000e+00],
+#     [7.50116146e-02 ,9.30422365e-02, 9.85430396e-02, 2.58947863e-01],
+#     [1.10010270e-01 ,3.95249173e-01, 2.06177263e-01 ,6.50382022e-02],
+#     [3.69118961e-01 ,2.20152317e-01, 1.28370910e-01, 6.84813994e-02],
+#     [0.00000000e+00 ,0.00000000e+00, 0.00000000e+00 ,0.00000000e+00],
+#     [0.00000000e+00 ,0.00000000e+00, 0.00000000e+00 ,0.00000000e+00],
+#     [1.15976328e-01 ,3.27502060e-01, 5.66663006e-01 ,1.95016659e-01],
+#     [2.85386970e-01 ,7.95718984e-01, 3.06140165e-01 ,4.07983999e-01],
+#     [0.00000000e+00 ,0.00000000e+00, 0.00000000e+00 ,0.00000000e+00]])
 env = gym.make("FrozenLake-v1", render_mode="rgb_array", is_slippery=slippery)
 # env = gym.make("FrozenLake-v1", render_mode="human", is_slippery=slippery)
 
 total_cnt = 10000
 total_reward = 0
-for i in range(total_cnt):
-    state, _ = env.reset()
-    done = False
-    while not done:
-        action = np.argmax(Q[state])
-        next_state, reward, done, _, _ = env.step(action)
-        total_reward += reward
-        state = next_state
-        # print(f"Action: {action}, State: {state}, Reward: {reward}, Q-Value: {Q[state]}")
-        # time.sleep(0.2)
+with tqdm(total=int(total_cnt), desc='Test') as pbar:
+    for i in range(total_cnt):
+        state, _ = env.reset()
+        done = False
+        while not done:
+            action = np.argmax(Q[state])
+            next_state, reward, done, _, _ = env.step(action)
+            total_reward += reward
+            state = next_state
+            # print(f"Action: {action}, State: {state}, Reward: {reward}, Q-Value: {Q[state]}")
+            # time.sleep(0.2)
+        pbar.update(1)
 
 print(f"success rate: {total_reward / total_cnt * 100:.2f}%")
 env.close()
