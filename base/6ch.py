@@ -59,8 +59,7 @@ class DynaQ:
         return action
 
     def q_learning(self, s0, a0, r, s1):
-        td_error = r + self.gamma * self.Q_table[s1].max(
-        ) - self.Q_table[s0, a0]
+        td_error = r + self.gamma * self.Q_table[s1].max() - self.Q_table[s0, a0]
         self.Q_table[s0, a0] += self.alpha * td_error
 
     def update(self, s0, a0, r, s1):
