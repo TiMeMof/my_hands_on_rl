@@ -61,7 +61,7 @@ class Sarsa:
 
 # 可以设置打滑/不打滑版本（打滑版本有一定概率使得动作失效）
 slippery = True
-epsilon = 1#设置的越小，越难训练
+epsilon = 1 #设置的越小，越难训练
 alpha = 0.1
 gamma = 0.95
 num_episodes = 10000
