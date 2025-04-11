@@ -62,9 +62,9 @@ class Sarsa:
 # 可以设置打滑/不打滑版本（打滑版本有一定概率使得动作失效）
 slippery = True
 epsilon = 1 #设置的越小，越难训练
-alpha = 0.1
-gamma = 0.95
-num_episodes = 10000
+alpha = 0.7 # 学习率越大，到最后越容易振荡，但是这里模型比较简单，所以呈现的是较高的准确率
+gamma = 0.95# 折扣因子
+num_episodes = 3000
 epsilon_decay = 0.001
 env = gym.make("FrozenLake-v1",render_mode="rgb_array", is_slippery=slippery)  # 创建环境
 
@@ -79,13 +79,13 @@ with tqdm(total=int(num_episodes ), desc='Q-Learning') as pbar:
         while not done:
             action = agent.choose_action(state)
             next_state, reward, done, _, _ = env.step(action)
-            episode_return += reward
+            episode_return += (reward if reward > 0 else -1)
             agent.update_q_table(state, action, reward, next_state)
             # print(f"Action: {action}, Next State: {next_state}, Reward: {reward}, Done: {done}")
             state = next_state
         # # 衰减探索概率
         agent.exploration_prob = max(agent.exploration_prob - agent.epsilon_decay, 0)
-
+        # agent.learning_rate = max(agent.learning_rate - agent.epsilon_decay, 0)
         return_list.append(episode_return)
         pbar.update(1)
 
@@ -104,7 +104,7 @@ with tqdm(total=int(num_episodes), desc='Sarsa') as pbar:
         done = False
         while not done:
             next_state, reward, done, _, _ = env2.step(action)
-            episode_return += reward
+            episode_return += (reward if reward > 0 else -1)
             next_action = agent2.choose_action(next_state)
             agent2.update_q_table(state, action, reward, next_state, next_action)
             state = next_state
@@ -117,16 +117,17 @@ with tqdm(total=int(num_episodes), desc='Sarsa') as pbar:
 
 env2.close()
 
-# episodes_list = list(range(len(return_list)))
-# plt.plot(episodes_list, return_list, label='Q-learning')
-# plt.plot(episodes_list, return_list2, label='Sarsa')
-# plt.xlabel('Episodes')
-# plt.ylabel('Returns')
-# plt.title('Training Returns')
-# plt.show()
+episodes_list = list(range(len(return_list)))
+plt.plot(episodes_list, return_list, label='Q-learning')
+plt.plot(episodes_list, return_list2, label='Sarsa')
+plt.xlabel('Episodes')
+plt.ylabel('Returns')
+plt.title('Training Returns')
+plt.show()
 
 print("Q 表：")
-print("Q-learning:\n",agent.q_table,"\n","Sarsa:\n",agent2.q_table)
+print(f"Q-learning:\n {np.array2string(agent.q_table, formatter={'float_kind':lambda x: f'{x:.2f}'})}")
+print(f"Sarsa:\n {np.array2string(agent2.q_table, formatter={'float_kind':lambda x: f'{x:.2f}'})}")
 # 测试训练好的 Q 表
 Q = agent.q_table
 # Q = np.array([[1.77839632e-01, 8.26318914e-02, 6.90146265e-02, 6.11688937e-02],
@@ -148,7 +149,7 @@ Q = agent.q_table
 env = gym.make("FrozenLake-v1", render_mode="rgb_array", is_slippery=slippery)
 # env = gym.make("FrozenLake-v1", render_mode="human", is_slippery=slippery)
 
-total_cnt = 10000
+total_cnt = 1000
 total_reward = 0
 with tqdm(total=int(total_cnt), desc='Test') as pbar:
     for i in range(total_cnt):
@@ -163,5 +164,22 @@ with tqdm(total=int(total_cnt), desc='Test') as pbar:
             # time.sleep(0.2)
         pbar.update(1)
 
-print(f"success rate: {total_reward / total_cnt * 100:.2f}%")
+Q = agent2.q_table
+total_reward2 = 0
+
+with tqdm(total=int(total_cnt), desc='Test sarsa') as pbar:
+    for i in range(total_cnt):
+        state, _ = env.reset()
+        done = False
+        while not done:
+            action = np.argmax(Q[state])
+            next_state, reward, done, _, _ = env.step(action)
+            total_reward2 += reward
+            state = next_state
+            # print(f"Action: {action}, State: {state}, Reward: {reward}, Q-Value: {Q[state]}")
+            # time.sleep(0.2)
+        pbar.update(1)
+
+print(f"Q-learning success rate: {total_reward / total_cnt * 100:.2f}%")
+print(f"Sarsa success rate: {total_reward2 / total_cnt * 100:.2f}%")
 env.close()
