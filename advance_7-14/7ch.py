@@ -4,7 +4,7 @@ import numpy as np
 import collections
 from tqdm import tqdm
 import torch
-import torch.nn.functional as F
+import torch.nn.functional as nn_func
 import matplotlib.pyplot as plt
 import rl_utils as rl_utils
 
@@ -33,7 +33,7 @@ class Qnet(torch.nn.Module):
         self.fc2 = torch.nn.Linear(hidden_dim, action_dim)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))  # 隐藏层使用ReLU激活函数
+        x = nn_func.relu(self.fc1(x))  # 隐藏层使用ReLU激活函数
         return self.fc2(x)
     
 
@@ -82,7 +82,7 @@ class DQN:
             -1, 1)
         q_targets = rewards + self.gamma * max_next_q_values * (1 - dones
                                                                 )  # TD误差目标
-        dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))  # 均方误差损失函数
+        dqn_loss = torch.mean(nn_func.mse_loss(q_values, q_targets))  # 均方误差损失函数
         self.optimizer.zero_grad()  # PyTorch中默认梯度会累积,这里需要显式将梯度置为0
         dqn_loss.backward()  # 反向传播更新参数
         self.optimizer.step()
@@ -180,8 +180,8 @@ class ConvolutionalQnet(torch.nn.Module):
 
     def forward(self, x):
         x = x / 255
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.fc4(x))
+        x = nn_func.relu(self.conv1(x))
+        x = nn_func.relu(self.conv2(x))
+        x = nn_func.relu(self.conv3(x))
+        x = nn_func.relu(self.fc4(x))
         return self.head(x)
