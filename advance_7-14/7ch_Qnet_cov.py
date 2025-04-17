@@ -52,6 +52,7 @@ class ConvolutionalQnet(torch.nn.Module):
         self.head = torch.nn.Linear(512, action_dim)
 
         # 这里batah_size = 1
+        self.in_channels = in_channels
         self.x_in = torch.zeros(1, in_channels, 84, 84).to(device)  # 输入的图片大小
 
     def _forward(self, x:torch.Tensor):
@@ -71,26 +72,48 @@ class ConvolutionalQnet(torch.nn.Module):
     def forward(self, x:np.ndarray):
         if isinstance(x, tuple):
             x = np.array(x)  # 将 tuple 转换为 np.ndarray
-        elif not isinstance(x, np.ndarray):
-            raise TypeError(f"Expected np.ndarray, but got {type(x)}")
+        # elif not isinstance(x, np.ndarray):
+        #     raise TypeError(f"Expected np.ndarray, but got {type(x)}")
         # print(f"x type: {type(x)}, x shape: {x.shape}")
-        assert x.shape == (400, 600, 3), f"Expected shape (400, 600, 3), but got {x.shape}"
-        # x的shape应该是(400,600,3)
-        x = torch.from_numpy(x).float().to(self.x_in.device)
-        # 转化为灰度图
-        x = torch.mean(x, dim=2)  # 将RGB转化为灰度图
-        # 现在x的shape是(400,600)
-        # 进行resize
-        x = torch.nn.functional.interpolate(x.unsqueeze(0).unsqueeze(0), size=(84, 84), mode='bilinear', align_corners=False)
-        # 现在x的shape是(1, 1, 84, 84)
-        # 像素值归一化到[0, 1]
-        x = x / 255.0
-        # 将self.x_in的最旧的数据剔除
-        self.x_in = torch.roll(self.x_in, shifts=-1, dims=1)
-        # 然后将x填入 self.x_in 的最新的数据，self.x_in的shape是(1, 4, 84, 84)
-        self.x_in[-1] = x
+        # assert x.shape == (400, 600, 3), f"Expected shape (400, 600, 3), but got {x.shape}"
 
-        x = self._forward(self.x_in)
+        if x.shape == (400, 600, 3):
+            # x的shape应该是(400,600,3)
+            x = torch.from_numpy(x).float().to(self.x_in.device)
+            # 转化为灰度图
+            x = torch.mean(x, dim=2)  # 将RGB转化为灰度图
+            # 现在x的shape是(400,600)
+            # 进行resize
+            x = torch.nn.functional.interpolate(x.unsqueeze(0).unsqueeze(0), size=(84, 84), mode='bilinear', align_corners=False)
+            # 现在x的shape是(1, 1, 84, 84)
+            # 像素值归一化到[0, 1]
+            x = x / 255.0
+            # 将self.x_in的最旧的数据剔除
+            self.x_in = torch.roll(self.x_in, shifts=-1, dims=1)
+            # 然后将x填入 self.x_in 的最新的数据，self.x_in的shape是(1, 4, 84, 84)
+            self.x_in[-1] = x
+
+            x = self._forward(self.x_in)
+        else:# 此时x的shape应该是(batch_size, 400, 600, 3)
+            if not isinstance(x, torch.Tensor):
+                x = torch.from_numpy(x).float().to(self.x_in.device)
+            x = x / 255.0 # 像素值归一化到[0, 1]
+            x = torch.mean(x, dim=3)  # 将RGB转化为灰度图
+            x = torch.nn.functional.interpolate(x.unsqueeze(0), size=(84, 84), mode='bilinear', align_corners=False)
+            # 创建 batch_size 个x_in, 每个x_in 的 shape 是(1, 4, 84, 84)
+            # 分别存储数据0000, 0001, 0012, 0123, 1234, 2345, 3456......一直到batch_size
+            x_in = torch.zeros(1, self.in_channels, 84, 84).to(device)  # 输入的图片大小
+            x_out = []
+            for i in range(x.shape[1]):
+                x_in = torch.roll(x_in, shifts=-1, dims=1)
+                # x应该是(1, 16, 84, 84)
+                # 这里应该依次通过x的dim=1来填充x_in
+                x_in[:, -1, :, :] = x[:, i, :, :]  # 将x的第i个切片放入x_in的最后一个通道
+                x_out.append(self._forward(x_in))
+            x = x_out
+            x = torch.stack(x)
+            # tmp1是(16,1,2),将其变成(16,2)
+            x = x.view(-1, 2)
         return x
 
     
@@ -129,43 +152,73 @@ class DQN_cov:
         
         # 从buffer中采样数据,数量为batch_size
         frames, actions, rewards, next_frames, dones = replay_buffer.sample(batch_size)
-        for i in range(len(frames)):
+        # frames = torch.tensor(frames, dtype=torch.float).to(self.device)
+        actions = torch.tensor(actions, dtype=torch.long).to(self.device).unsqueeze(1)
+        rewards = torch.tensor(rewards, dtype=torch.float).to(self.device)
+        next_frames = torch.tensor(next_frames, dtype=torch.float).to(self.device)
+        dones = torch.tensor(dones, dtype=torch.float).to(self.device)
 
-            # 计算当前网络的Q值
-            frame = frames[i]
-            # action = actions[i]
-            reward = rewards[i]
-            next_frame = next_frames[i]
-            done = dones[i]
-            action = torch.tensor(actions[i], dtype=torch.long).to(self.device).unsqueeze(0).unsqueeze(1)
-            # rewards = torch.tensor(rewards[i], dtype=torch.float).to(self.device)
-            # next_frame = torch.tensor(next_frames[i], dtype=torch.float).to(self.device)
-            # done = torch.tensor(dones[i], dtype=torch.float).to(self.device)
-            # print(f"frame type: {(frame.shape)}, action type: {type(action)}, reward type: {type(reward)}, next_state type: {type(next_state)}, done type: {type(done)}")
-            tmp1 = self.q_net(frame)
-            # print(f"tmp1 shape: {tmp1.shape}, action shape: {action.shape}")
-            q_values = tmp1.gather(1, action)
-            # 计算目标网络的Q值
-            next_q_values = self.target_q_net(next_frame).max(1)[0].detach()
-            target_q_values = reward + (1 - done) * self.gamma * next_q_values
-            target_q_values = target_q_values.unsqueeze(1) 
-            # 计算损失函数
-            loss = F.mse_loss(q_values, target_q_values)
-            # 更新当前网络的参数
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            # 更新目标网络
-            if self.count % self.target_update == 0:
-                self.target_q_net.load_state_dict(self.q_net.state_dict())
-            self.count += 1
+        tmp1 = self.q_net(frames)
+
+        # print(f"tmp1 shape: {tmp1.shape}, action shape: {action.shape}")
+        q_values = tmp1.gather(1, actions)
+        # 计算目标网络的Q值
+        max_next_q_values = self.target_q_net(next_frames).max(1)[0].detach()
+        target_q_values = rewards + (1 - dones) * self.gamma * max_next_q_values
+        target_q_values = target_q_values.unsqueeze(1) 
+        # 计算损失函数
+        loss = F.mse_loss(q_values, target_q_values)
+        dqn_loss = torch.mean(loss)
+        self.optimizer.zero_grad()  # PyTorch中默认梯度会累积,这里需要显式将梯度置为0
+        dqn_loss.backward()  # 反向传播更新参数
+        self.optimizer.step()
+
+        if self.count % self.target_update == 0:
+            self.target_q_net.load_state_dict(
+                self.q_net.state_dict())  # 更新目标网络
+        self.count += 1
+
+
+        # for i in range(len(frames)):
+
+        #     # 计算当前网络的Q值
+        #     frame = frames[i]
+        #     # action = actions[i]
+        #     reward = rewards[i]
+        #     next_frame = next_frames[i]
+        #     done = dones[i]
+        #     action = torch.tensor(actions[i], dtype=torch.long).to(self.device).unsqueeze(0).unsqueeze(1)
+        #     # rewards = torch.tensor(rewards[i], dtype=torch.float).to(self.device)
+        #     # next_frame = torch.tensor(next_frames[i], dtype=torch.float).to(self.device)
+        #     # done = torch.tensor(dones[i], dtype=torch.float).to(self.device)
+        #     # print(f"frame type: {(frame.shape)}, action type: {type(action)}, reward type: {type(reward)}, next_state type: {type(next_state)}, done type: {type(done)}")
+        #     tmp1 = self.q_net(frame)
+        #     # print(f"tmp1 shape: {tmp1.shape}, action shape: {action.shape}")
+        #     q_values = tmp1.gather(1, action)
+        #     # 计算目标网络的Q值
+        #     next_q_values = self.target_q_net(next_frame).max(1)[0].detach()
+        #     target_q_values = reward + (1 - done) * self.gamma * next_q_values
+        #     target_q_values = target_q_values.unsqueeze(1) 
+        #     # 计算损失函数
+        #     loss = F.mse_loss(q_values, target_q_values)
+        #     # print(f"loss: {loss.item()}")
+        #     # 更新当前网络的参数
+        #     self.optimizer.zero_grad()
+        #     loss.backward()
+        #     self.optimizer.step()
+        #     # 更新目标网络
+        #     if self.count % self.target_update == 0:
+        #         state_dict = self.q_net.state_dict()
+        #         # print(f"state_dict keys: {state_dict.keys()}")
+        #         self.target_q_net.load_state_dict(state_dict)
+        #     self.count += 1
 
 
 lr = 1e-4
 num_episodes = 500
 hidden_dim = 128
-gamma = 0.98
-epsilon = 0.75
+gamma = 0.95
+epsilon = 0.7
 epsilon_decay = 0.001
 target_update = 20
 buffer_size = 10000
@@ -210,7 +263,9 @@ for i in range(10):
                 replay_buffer.add(frame, action, reward, next_frame, done)
                 # frame = env.render()
                 if len(replay_buffer.buffer) > batch_size:
+                    # print(f"update start time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
                     agent.update(batch_size, replay_buffer)
+                    # print(f"update end time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
                 if (episode + 1) % 50 == 0:
                     frames.append(frame)
                 state = next_state
@@ -225,10 +280,17 @@ for i in range(10):
 
 
 episodes_list = list(range(len(return_list)))
-plt.plot(episodes_list, return_list)
+plt.plot(episodes_list, return_list, label='DQN')
 plt.xlabel('Episodes')
 plt.ylabel('Total Reward')
 plt.title('Total Reward vs Episodes')
+
+mv_return = rl_utils.moving_average(return_list, 9)
+plt.plot(episodes_list, mv_return, label='Moving Average')
+plt.xlabel('Episodes')
+plt.ylabel('Returns')
+plt.title('DQN on {}'.format(env_name))
+
 plt.savefig(
     'pic/{}_Cov_{}.png'.format(env_name, time.strftime('%Y-%m-%d_%H-%M-%S')))
 plt.show()

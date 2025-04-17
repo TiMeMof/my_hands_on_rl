@@ -178,7 +178,9 @@ for i in range(10):
                         'rewards': b_r,
                         'dones': b_d
                     }
+                    # print(f"update start time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
                     agent.update(transition_dict)
+                    # print(f"update end time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             return_list.append(episode_return)
             if (i_episode + 1) % 50 == 0:
                 imageio.mimsave(os.path.join(save_path, 'cartpole_{}_{}_{}.gif'.format(env_name, i_episode, time.strftime('%Y-%m-%d_%H-%M-%S')) ), frames)
