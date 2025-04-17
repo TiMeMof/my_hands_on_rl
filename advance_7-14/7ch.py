@@ -5,7 +5,7 @@ import numpy as np
 import collections
 from tqdm import tqdm
 import torch
-import torch.nn.functional as nn_func
+import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import rl_utils as rl_utils
 import time
@@ -109,7 +109,7 @@ class DQN:
             -1, 1)
         q_targets = rewards + self.gamma * max_next_q_values * (1 - dones
                                                                 )  # TD误差目标
-        dqn_loss = torch.mean(nn_func.mse_loss(q_values, q_targets))  # 均方误差损失函数
+        dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))  # 均方误差损失函数
 
         self.optimizer.zero_grad()  # PyTorch中默认梯度会累积,这里需要显式将梯度置为0
         dqn_loss.backward()  # 反向传播更新参数
@@ -138,7 +138,6 @@ env_name = 'CartPole-v1'
 env = gym.make(env_name, render_mode='rgb_array')
 random.seed(0)
 np.random.seed(0)
-# env.seed(0)
 torch.manual_seed(0)
 replay_buffer = ReplayBuffer(buffer_size, device)
 state_dim = env.observation_space.shape[0]
@@ -157,6 +156,7 @@ for i in range(10):
                 frames = []
                 save_path = 'vid'
                 frames.append(env.render())
+                # print(frames[-1])
             done = False
             while not done:
                 if (i_episode + 1) % 50 == 0:
@@ -208,21 +208,3 @@ plt.title('DQN on {}'.format(env_name))
 plt.savefig(
     'pic/{}_{}.png'.format(env_name, time.strftime('%Y-%m-%d_%H-%M-%S')))
 # plt.show()
-
-class ConvolutionalQnet(torch.nn.Module):
-    ''' 加入卷积层的Q网络 '''
-    def __init__(self, action_dim, in_channels=4):
-        super(ConvolutionalQnet, self).__init__()
-        self.conv1 = torch.nn.Conv2d(in_channels, 32, kernel_size=8, stride=4)
-        self.conv2 = torch.nn.Conv2d(32, 64, kernel_size=4, stride=2)
-        self.conv3 = torch.nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self.fc4 = torch.nn.Linear(7 * 7 * 64, 512)
-        self.head = torch.nn.Linear(512, action_dim)
-
-    def forward(self, x):
-        x = x / 255
-        x = nn_func.relu(self.conv1(x))
-        x = nn_func.relu(self.conv2(x))
-        x = nn_func.relu(self.conv3(x))
-        x = nn_func.relu(self.fc4(x))
-        return self.head(x)
