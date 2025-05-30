@@ -1,6 +1,7 @@
-python==3.9
+# python==3.9
 numpy==1.23.0
 tqdm
 gym==0.26.2
 matplotlib>=3.9.2
 imageio
+torch
