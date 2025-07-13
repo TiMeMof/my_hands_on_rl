@@ -29,7 +29,8 @@ class REINFORCE:
         self.device = device
 
     def take_action(self, state):  # 根据动作概率分布随机采样
-        state = torch.tensor([state], dtype=torch.float).to(self.device)
+        # state = torch.tensor([state], dtype=torch.float).to(self.device)
+        state = torch.from_numpy(np.array(state)).float().unsqueeze(0).to(self.device)
         probs = self.policy_net(state)
         action_dist = torch.distributions.Categorical(probs)
         action = action_dist.sample()
@@ -44,8 +45,9 @@ class REINFORCE:
         self.optimizer.zero_grad()
         for i in reversed(range(len(reward_list))):  # 从最后一步算起
             reward = reward_list[i]
-            state = torch.tensor([state_list[i]],
-                                 dtype=torch.float).to(self.device)
+            # state = torch.tensor([state_list[i]],
+            #                      dtype=torch.float).to(self.device)
+            state = torch.from_numpy(np.array(state_list[i])).float().unsqueeze(0).to(self.device)
             action = torch.tensor([action_list[i]]).view(-1, 1).to(self.device)
             log_prob = torch.log(self.policy_net(state).gather(1, action))
             G = self.gamma * G + reward
